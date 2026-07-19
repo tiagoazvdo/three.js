@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>SafePlay Three.js Worker smoke</title>
+		<link rel="icon" href="data:,">
+	</head>
+	<body>
+		<canvas id="surface" width="8" height="8"></canvas>
+		<script type="module">
+			const canvas = document.getElementById( 'surface' );
+
+			globalThis.__SAFEPLAY_RESULT__ = new Promise( ( resolve ) => {
+
+				if ( typeof canvas.transferControlToOffscreen !== 'function' ) {
+
+					resolve( { ok: false, error: 'transferControlToOffscreen is unavailable' } );
+					return;
+
+				}
+
+				const worker = new Worker( './worker.js', { type: 'module' } );
+				const timeout = setTimeout( () => {
+
+					worker.terminate();
+					resolve( { ok: false, error: 'worker smoke timed out' } );
+
+				}, 15000 );
+
+				worker.onmessage = ( event ) => {
+
+					clearTimeout( timeout );
+					worker.terminate();
+					resolve( event.data );
+
+				};
+
+				worker.onerror = ( event ) => {
+
+					clearTimeout( timeout );
+					worker.terminate();
+					resolve( { ok: false, error: event.message } );
+
+				};
+
+				const offscreen = canvas.transferControlToOffscreen();
+				worker.postMessage( { canvas: offscreen }, [ offscreen ] );
+
+			} );
+		</script>
+	</body>
+</html>
